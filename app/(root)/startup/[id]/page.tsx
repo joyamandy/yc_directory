@@ -1,34 +1,31 @@
-import { Suspense } from "react";
-import { client } from "@/sanity/lib/client";
-import {
-  PLAYLIST_BY_SLUG_QUERY,
-  STARTUP_BY_ID_QUERY,
-} from "@/sanity/lib/queries";
-import { notFound } from "next/navigation";
-import { formatDate } from "@/lib/utils";
-import Link from "next/link";
-import Image from "next/image";
-
-import markdownit from "markdown-it";
-import { Skeleton } from "@/components/ui/skeleton";
-import View from "@/components/View";
-import StartupCard, { StartupTypeCard } from "@/components/StartupCard";
-
-const md = markdownit();
-
 export const experimental_ppr = true;
 
-const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
-  const id = (await params).id;
+import Link from "next/link";
+import Image from "next/image";
+import { notFound } from "next/navigation";
+import { Suspense } from "react";
+import { client } from "@/sanity/lib/client";
+import { STARTUP_BY_ID_QUERY, PLAYLIST_BY_SLUG_QUERY } from "@/sanity/lib/queries";
+import { formatDate } from "@/lib/utils";
+import md from "@/lib/markdown";
+import StartupCard, { StartupTypeCard } from "@/components/StartupCard";
+import { Skeleton } from "@/components/ui/skeleton";
+import View from "@/components/View";
 
-  const [post, { select: editorPosts }] = await Promise.all([
+const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
+  const { id } = await params;
+
+  // Run queries in parallel
+  const [post, playlist] = await Promise.all([
     client.fetch(STARTUP_BY_ID_QUERY, { id }),
-    client.fetch(PLAYLIST_BY_SLUG_QUERY, {
-      slug: "editor-picks-new",
-    }),
+    client.fetch(PLAYLIST_BY_SLUG_QUERY, { slug: "editor-picks-new" }),
   ]);
 
+  // Handle missing post
   if (!post) return notFound();
+
+  // Safe fallback if playlist is null or has no "select"
+  const editorPosts: StartupTypeCard[] = playlist?.select ?? [];
 
   const parsedContent = md.render(post?.pitch || "");
 
@@ -86,7 +83,7 @@ const Page = async ({ params }: { params: Promise<{ id: string }> }) => {
 
         <hr className="divider" />
 
-        {editorPosts?.length > 0 && (
+        {editorPosts.length > 0 && (
           <div className="max-w-4xl mx-auto">
             <p className="text-30-semibold">Editor Picks</p>
 
